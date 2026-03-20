@@ -160,6 +160,7 @@ export function purchaseCoupon(couponId: string): UserCoupon | null {
     is_redeemed: false,
     redeemed_at: null,
     expires_at: coupon.expiration_date,
+    price_bought_at: coupon.price, // Store the price at which the coupon was bought for future reference
   };
   userCoupons.push(uc);
   return uc;

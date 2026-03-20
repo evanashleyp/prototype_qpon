@@ -44,4 +44,5 @@ export interface UserCoupon {
   is_redeemed: boolean;
   redeemed_at: string | null;
   expires_at: string;
+  price_bought_at: number; // New field to store the price at which the coupon was bought
 }
