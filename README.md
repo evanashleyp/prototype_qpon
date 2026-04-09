@@ -164,7 +164,6 @@ cd ~/Documents/your-directory
 
 # Clone the repository
 git clone <repository-url>
-cd deal-scan-save-main
 ```
 
 ### Step 2: Install Dependencies
