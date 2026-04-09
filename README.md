@@ -160,7 +160,7 @@ npm --version
 
 ```bash
 # Navigate to your preferred directory
-cd ~/Documents/Evan/Coding/College/RPL/prototype_tubes
+cd ~/Documents/your-directory
 
 # Clone the repository
 git clone <repository-url>
