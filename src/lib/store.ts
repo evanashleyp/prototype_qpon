@@ -1,4 +1,4 @@
-import { Coupon, User, UserCoupon, Transaction, CouponItem } from './types';
+import { Coupon, User, UserCoupon, Transaction, CouponItem, PasswordResetToken } from './types';
 
 // Simple in-memory store simulating backend
 const MOCK_MERCHANTS: User[] = [
@@ -74,7 +74,12 @@ function generateQR(): string {
 }
 
 // Auth
-export function login(email: string, _password: string): User | null {
+export function login(email: string, password: string): User | null {
+  // Validate credentials
+  if (!validateCredentials(email, password)) {
+    return null;
+  }
+
   // Demo accounts
   if (email === 'user@demo.com') {
     currentUser = { id: 'u1', name: 'Demo User', email, role: 'user', created_at: '2024-01-01' };
@@ -88,8 +93,10 @@ export function login(email: string, _password: string): User | null {
   return null;
 }
 
-export function register(name: string, email: string, _password: string, role: 'user' | 'merchant'): User {
+export function register(name: string, email: string, password: string, role: 'user' | 'merchant'): User {
   currentUser = { id: generateId(), name, email, role, created_at: new Date().toISOString() };
+  // Store password for new user
+  MOCK_PASSWORDS.set(email, password);
   return currentUser;
 }
 
@@ -183,4 +190,146 @@ export function redeemCoupon(qrCode: string): { success: boolean; message: strin
   uc.is_redeemed = true;
   uc.redeemed_at = new Date().toISOString();
   return { success: true, message: `Coupon "${uc.coupon.title}" redeemed successfully!` };
+}
+
+// Password Reset
+const passwordResetTokens: Map<string, PasswordResetToken> = new Map();
+const passwordResetRequests: Map<string, number> = new Map(); // Track requests per email
+const RESET_CODE_EXPIRY = 60 * 60 * 1000; // 1 hour
+const RESET_REQUEST_COOLDOWN = 5 * 60 * 1000; // 5 minutes between requests
+const MOCK_PASSWORDS: Map<string, string> = new Map([
+  ['user@demo.com', 'password'],
+  ['burger@demo.com', 'password'],
+  ['coffee@demo.com', 'password'],
+  ['pizza@demo.com', 'password'],
+]);
+
+function generateResetCode(): string {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+/**
+ * Request a password reset for an email address
+ * @returns { code: string, message: string } - Reset code and message (code only shown in demo)
+ */
+export function requestPasswordReset(email: string): { success: boolean; message: string; code?: string } {
+  // Check if email exists in mock users or merchants
+  const userExists = email === 'user@demo.com' || MOCK_MERCHANTS.some(m => m.email === email) || 
+                     MOCK_PASSWORDS.has(email);
+  
+  if (!userExists) {
+    // For security, don't reveal if email exists
+    return { success: true, message: 'If an account with this email exists, you will receive a reset link.' };
+  }
+
+  // Check rate limiting - prevent multiple requests in short time
+  const lastRequest = passwordResetRequests.get(email);
+  if (lastRequest && Date.now() - lastRequest < RESET_REQUEST_COOLDOWN) {
+    return { 
+      success: false, 
+      message: `Please wait ${Math.ceil((RESET_REQUEST_COOLDOWN - (Date.now() - lastRequest)) / 1000)} seconds before requesting again.` 
+    };
+  }
+
+  // Generate reset code
+  const code = generateResetCode();
+  const expiresAt = Date.now() + RESET_CODE_EXPIRY;
+
+  // Store reset token
+  passwordResetTokens.set(code, {
+    code,
+    email,
+    expiresAt,
+    used: false,
+  });
+
+  // Update last request timestamp
+  passwordResetRequests.set(email, Date.now());
+
+  // In a real app, send email here
+  // For demo, log to console
+  console.log(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔐 PASSWORD RESET REQUEST (DEMO MODE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Email: ${email}
+Reset Code: ${code}
+Expires At: ${new Date(expiresAt).toLocaleString()}
+Reset Link: ${typeof window !== 'undefined' ? `${window.location.origin}/reset-password/${code}` : 'N/A'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  `);
+
+  return { 
+    success: true, 
+    message: 'Password reset link sent to your email!',
+    code // Return code for demo purposes
+  };
+}
+
+/**
+ * Validate a password reset code
+ */
+export function validateResetCode(code: string): { valid: boolean; email?: string; message: string } {
+  const token = passwordResetTokens.get(code);
+
+  if (!token) {
+    return { valid: false, message: 'Invalid reset code.' };
+  }
+
+  if (token.used) {
+    return { valid: false, message: 'This reset code has already been used.' };
+  }
+
+  if (Date.now() > token.expiresAt) {
+    return { valid: false, message: 'This reset code has expired.' };
+  }
+
+  return { valid: true, email: token.email, message: 'Reset code is valid.' };
+}
+
+/**
+ * Reset password with valid reset code
+ */
+export function resetPassword(code: string, newPassword: string): { success: boolean; message: string } {
+  const validation = validateResetCode(code);
+
+  if (!validation.valid) {
+    return { success: false, message: validation.message };
+  }
+
+  if (!validation.email) {
+    return { success: false, message: 'Invalid reset code.' };
+  }
+
+  // Update password
+  MOCK_PASSWORDS.set(validation.email, newPassword);
+
+  // Mark token as used
+  const token = passwordResetTokens.get(code);
+  if (token) {
+    token.used = true;
+  }
+
+  return { 
+    success: true, 
+    message: 'Password reset successful! You can now login with your new password.' 
+  };
+}
+
+/**
+ * Validate login credentials (used for password verification)
+ */
+export function validateCredentials(email: string, password: string): boolean {
+  const storedPassword = MOCK_PASSWORDS.get(email);
+  return storedPassword === password;
+}
+
+/**
+ * Get all active reset tokens (admin/debug only)
+ */
+export function getActiveResetTokens(): PasswordResetToken[] {
+  const now = Date.now();
+  return Array.from(passwordResetTokens.values()).filter(
+    token => !token.used && token.expiresAt > now
+  );
 }
