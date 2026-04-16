@@ -46,3 +46,15 @@ export interface UserCoupon {
   expires_at: string;
   price_bought_at: number; // New field to store the price at which the coupon was bought
 }
+
+export interface PasswordResetToken {
+  code: string;
+  email: string;
+  expiresAt: number;
+  used: boolean;
+}
+
+export interface PasswordResetRequest {
+  email: string;
+  timestamp: number;
+}

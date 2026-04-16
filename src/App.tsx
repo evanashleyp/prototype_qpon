@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Navbar from '@/components/Navbar';
 import Index from "./pages/Index";
 import LoginPage from './pages/LoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import CouponListPage from './pages/CouponListPage';
 import CouponDetailPage from './pages/CouponDetailPage';
 import MyCouponsPage from './pages/MyCouponsPage';
@@ -30,6 +32,8 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage onAuth={setUser} />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:code" element={<ResetPasswordPage />} />
             <Route path="/coupons" element={<CouponListPage />} />
             <Route path="/coupons/:id" element={<CouponDetailPage />} />
             <Route path="/my-coupons" element={<MyCouponsPage />} />

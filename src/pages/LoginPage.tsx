@@ -71,6 +71,16 @@ export default function LoginPage({ onAuth }: LoginPageProps) {
                 <div className="space-y-2">
                   <Label>Password</Label>
                   <Input type="password" placeholder="any password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} />
+                  <div className="text-right">
+                    <Button 
+                      type="button"
+                      variant="link" 
+                      onClick={() => navigate('/forgot-password')}
+                      className="h-auto p-0 text-xs"
+                    >
+                      Forgot password?
+                    </Button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full">Login</Button>
                 <p className="text-xs text-center text-muted-foreground">
