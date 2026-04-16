@@ -49,7 +49,8 @@ export default function MerchantDashboard() {
   };
 
   const handleRedeem = () => {
-    const result = redeemCoupon(qrInput.trim());
+    if (!user) return;
+    const result = redeemCoupon(qrInput.trim(), user.id);
     toast({ title: result.success ? 'Success' : 'Failed', description: result.message, variant: result.success ? 'default' : 'destructive' });
     if (result.success) setQrInput('');
     refresh();

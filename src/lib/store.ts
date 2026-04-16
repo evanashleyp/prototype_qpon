@@ -192,9 +192,15 @@ export function getUserCoupons(userId: string): UserCoupon[] {
 }
 
 // Redeem
-export function redeemCoupon(qrCode: string): { success: boolean; message: string } {
+export function redeemCoupon(qrCode: string, merchantId: string): { success: boolean; message: string } {
   const uc = userCoupons.find(c => c.qr_code === qrCode);
   if (!uc) return { success: false, message: 'Invalid QR code.' };
+  
+  // Verify merchant owns this coupon
+  if (uc.coupon.merchant_id !== merchantId) {
+    return { success: false, message: 'This coupon does not belong to your store.' };
+  }
+  
   if (uc.is_redeemed) return { success: false, message: 'Coupon already redeemed.' };
   if (new Date(uc.expires_at) < new Date()) return { success: false, message: 'Coupon has expired.' };
 
