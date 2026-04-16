@@ -28,19 +28,40 @@ export default function ResetPasswordPage() {
 
   // Validate reset code on mount
   React.useEffect(() => {
-    if (!code) {
-      setValidationError('No reset code provided');
-      setValidating(false);
-      return;
+    let isMounted = true;
+
+    async function validateCode() {
+      if (!code) {
+        if (isMounted) {
+          setValidationError('No reset code provided');
+          setValidating(false);
+        }
+        return;
+      }
+
+      try {
+        const validation = await validateResetCode(code);
+        if (isMounted) {
+          if (validation.valid) {
+            setCodeValid(true);
+          } else {
+            setValidationError(validation.message);
+          }
+          setValidating(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setValidationError(err instanceof Error ? err.message : 'Failed to validate reset code');
+          setValidating(false);
+        }
+      }
     }
 
-    const validation = validateResetCode(code);
-    if (validation.valid) {
-      setCodeValid(true);
-    } else {
-      setValidationError(validation.message);
-    }
-    setValidating(false);
+    validateCode();
+
+    return () => {
+      isMounted = false;
+    };
   }, [code]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,27 +85,37 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
 
-    const result = resetPassword(code, newPassword);
+    try {
+      const result = await resetPassword(code, newPassword);
 
-    if (result.success) {
-      setResetSuccess(true);
-      toast({ 
-        title: 'Success', 
-        description: 'Your password has been reset successfully.' 
-      });
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
-    } else {
-      setError(result.message);
+      if (result.success) {
+        setResetSuccess(true);
+        toast({ 
+          title: 'Success', 
+          description: 'Your password has been reset successfully.' 
+        });
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      } else {
+        setError(result.message);
+        toast({ 
+          title: 'Error', 
+          description: result.message,
+          variant: 'destructive'
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to reset password';
+      setError(message);
       toast({ 
         title: 'Error', 
-        description: result.message,
+        description: message,
         variant: 'destructive'
       });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   if (validating) {

@@ -1,12 +1,45 @@
 import { getCoupons } from '@/lib/store';
 import CouponCard from '@/components/CouponCard';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
+import { Coupon } from '@/lib/types';
 
 export default function CouponListPage() {
   const [search, setSearch] = useState('');
-  const coupons = getCoupons();
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchCoupons() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getCoupons();
+        if (isMounted) {
+          setCoupons(data);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load coupons');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchCoupons();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const filtered = coupons.filter(c =>
     c.title.toLowerCase().includes(search.toLowerCase()) ||
     c.merchant_name.toLowerCase().includes(search.toLowerCase())
@@ -24,7 +57,15 @@ export default function CouponListPage() {
         <Input placeholder="Search coupons..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading coupons...</p>
+        </div>
+      ) : error ? (
+        <div className="text-center py-12">
+          <p className="text-destructive">{error}</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <p className="text-muted-foreground text-center py-12">No coupons found.</p>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

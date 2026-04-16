@@ -29,25 +29,35 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    const result = requestPasswordReset(email);
+    try {
+      const result = await requestPasswordReset(email);
 
-    if (result.success) {
-      setResetCode(result.code || '');
-      setResetSent(true);
-      toast({ 
-        title: 'Success', 
-        description: 'Check your email for password reset instructions.' 
-      });
-    } else {
-      setError(result.message);
+      if (result.success) {
+        setResetCode(result.code || '');
+        setResetSent(true);
+        toast({ 
+          title: 'Success', 
+          description: 'Check your email for password reset instructions.' 
+        });
+      } else {
+        setError(result.message);
+        toast({ 
+          title: 'Error', 
+          description: result.message,
+          variant: 'destructive'
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to process password reset';
+      setError(message);
       toast({ 
         title: 'Error', 
-        description: result.message,
+        description: message,
         variant: 'destructive'
       });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   if (resetSent) {

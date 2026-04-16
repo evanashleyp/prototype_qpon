@@ -1,3 +1,267 @@
+# CouponHub - Monorepo Setup Guide
+
+This is a full-stack coupon marketplace platform with separate frontend and backend applications.
+
+## Project Structure
+
+```
+couponhub/
+├── frontend/          # React + TypeScript SPA
+├── backend/           # Node.js + Express REST API
+├── shared/            # Shared TypeScript types
+└── package.json       # Monorepo workspace configuration
+```
+
+## Prerequisites
+
+- **Node.js** (v18 or higher)
+- **npm** (v9 or higher) - for workspace support
+- **MySQL** (v5.7 or higher)
+
+## Quick Start
+
+### 1. Install Dependencies
+
+```bash
+# Install all workspace dependencies
+npm install
+```
+
+### 2. Setup Backend
+
+```bash
+cd backend
+
+# Copy environment variables
+cp .env.example .env
+
+# Edit .env with your MySQL credentials
+# DATABASE_HOST=localhost
+# DATABASE_USER=root
+# DATABASE_PASSWORD=your_password
+# DATABASE_NAME=couponhub
+```
+
+#### Create Database
+
+```sql
+-- Connect to MySQL and run:
+CREATE DATABASE couponhub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Then initialize the schema:
+
+```bash
+npm run db:init
+```
+
+### 3. Setup Frontend
+
+```bash
+cd ../frontend
+
+# Copy environment variables
+cp .env.example .env
+
+# Edit .env if backend is on a different URL
+# VITE_API_URL=http://localhost:3000/api
+```
+
+### 4. Run Development Servers
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+npm run dev
+```
+
+Expected output:
+```
+✅ MySQL connection successful
+✅ Email transporter ready
+🚀 Server running on http://localhost:3000
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+
+Expected output:
+```
+  VITE v5.4.19  ready in 123 ms
+  ➜  Local:   http://localhost:5173/
+  ➜  press h to show help
+```
+
+Or run both together:
+```bash
+npm run dev:all
+```
+
+## Architecture
+
+### Frontend (`/frontend`)
+- **Framework:** React 18 with TypeScript
+- **UI Library:** shadcn/ui + Radix UI
+- **Styling:** Tailwind CSS
+- **Routing:** React Router 6
+- **Form Validation:** React Hook Form + Zod
+- **API Client:** Fetch API with JWT token management
+
+**Key Features:**
+- User authentication (login/register)
+- Browse and purchase coupons
+- View purchased coupons with QR codes
+- Merchant dashboard for coupon management
+- Password reset flow with email
+
+### Backend (`/backend`)
+- **Framework:** Express.js with TypeScript
+- **Database:** MySQL with mysql2/promise
+- **Auth:** JWT tokens
+- **Password Hashing:** bcryptjs
+- **Email:** Nodemailer (Ethereal for testing)
+- **Validation:** Zod
+
+**API Routes:**
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/validate-reset-code` - Validate reset code
+- `POST /api/auth/reset-password` - Reset password
+- `GET /api/coupons` - List coupons
+- `GET /api/coupons/:id` - Get coupon details
+- `POST /api/coupons` - Create coupon (merchant)
+- `POST /api/coupons/:id/purchase` - Purchase coupon
+- `POST /api/coupons/:qrcode/redeem` - Redeem coupon (merchant)
+- `GET /api/users/coupons` - Get user's coupons
+- `GET /api/users/profile` - Get user profile
+
+### Shared Types (`/shared`)
+Common TypeScript interfaces used by both frontend and backend:
+- `User`, `Coupon`, `UserCoupon`, `Transaction`
+- API request/response types
+- `PasswordResetToken`, etc.
+
+## Scripts
+
+### Development
+```bash
+npm run dev          # Run frontend dev server
+npm run dev:all      # Run both frontend and backend
+```
+
+### Building
+```bash
+npm run build        # Build frontend
+npm run build:all    # Build both frontend and backend
+```
+
+### Testing & Linting
+```bash
+npm run test         # Run frontend tests
+npm run lint         # Lint frontend
+npm run type-check   # Type check all workspaces
+```
+
+### Backend Specific
+```bash
+cd backend
+npm run db:init      # Initialize MySQL database with schema
+```
+
+## Database Schema
+
+The backend uses MySQL with the following main tables:
+- **users** - User accounts with role-based access (user/merchant)
+- **merchants** - Extended merchant information
+- **coupons** - Coupon listings
+- **coupon_items** - Items included in each coupon
+- **transactions** - Purchase records
+- **user_coupons** - User's purchased coupons with QR codes
+- **password_reset_tokens** - Password reset tokens
+- **sessions** - (Optional) Server-side session tracking
+
+See [backend/src/db/schema.sql](backend/src/db/schema.sql) for full schema details.
+
+## Development Workflow
+
+### Adding a New API Endpoint
+
+1. **Plan** the endpoint in [backend/src/routes/](backend/src/routes/)
+2. **Implement** database operations
+3. **Add** the API client function in [frontend/src/lib/api.ts](frontend/src/lib/api.ts)
+4. **Update** frontend components to use the new API
+5. **Test** end-to-end
+
+### Environment Variables
+
+**Frontend** (.env):
+```
+VITE_API_URL=http://localhost:3000/api
+```
+
+**Backend** (.env):
+```
+DATABASE_HOST=localhost
+DATABASE_PORT=3306
+DATABASE_USER=root
+DATABASE_PASSWORD=
+DATABASE_NAME=couponhub
+JWT_SECRET=your-secret-key
+EMAIL_SERVICE=ethereal
+EMAIL_USER=your-email@ethereal.email
+EMAIL_PASS=your-ethereal-password
+NODE_ENV=development
+PORT=3000
+```
+
+## Demo Credentials
+
+After seeding the database with demo data:
+- **User:** user@demo.com / password
+- **Merchant:** burger@demo.com / password
+- **Merchant:** coffee@demo.com / password
+
+## Troubleshooting
+
+### MySQL Connection Issues
+- Check MySQL is running: `mysql -u root -p`
+- Verify credentials in `backend/.env`
+- Create database if needed: `CREATE DATABASE couponhub;`
+
+### Port Already in Use
+- Backend (3000): `lsof -i :3000` on macOS/Linux (use `netstat -ano | findstr :3000` on Windows)
+- Frontend (5173): Vite will use next available port
+
+### Email Not Sending
+- Check `.env` email credentials
+- Verify Ethereal account credentials
+- Check console logs for email errors
+
+## Next Steps
+
+1. Implement API endpoints in Phase 3
+2. Create database seed data script
+3. Add API response caching
+4. Implement real-time notifications
+5. Add image upload for coupons
+6. Setup Docker for easier deployment
+
+## Project Status
+
+- ✅ **Phase 1:** Monorepo structure and foundation
+- ✅ **Phase 2:** Backend scaffolding with routes and middleware
+- 🔄 **Phase 3:** API implementation (to be completed)
+- ⏳ **Phase 4:** Frontend API integration
+- ⏳ **Phase 5:** Integration testing and debugging
+- ⏳ **Phase 6:** Email and advanced features
+
+## License
+
+MIT
 # CouponHub - Deal Discovery & Redemption Platform
 
 A modern, full-featured coupon management and discovery platform built with React, TypeScript, and Vite. Users can browse and purchase discount coupons from local merchants, while merchants can manage their coupon offerings through a dedicated dashboard.

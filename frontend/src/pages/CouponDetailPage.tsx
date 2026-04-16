@@ -5,32 +5,91 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Clock, Package, Tag, ShoppingCart } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Coupon } from '@/lib/types';
 
 export default function CouponDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const user = getCurrentUser();
-  const [, setTick] = useState(0);
 
-  const coupon = getCoupon(id!);
-  if (!coupon) return <div className="container py-12 text-center text-muted-foreground">Coupon not found.</div>;
+  const [coupon, setCoupon] = useState<Coupon | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [purchasing, setPurchasing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCoupon() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getCoupon(id!);
+        if (isMounted) {
+          if (data) {
+            setCoupon(data);
+          } else {
+            setError('Coupon not found');
+          }
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load coupon');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    if (id) {
+      loadCoupon();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const handlePurchase = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (!coupon) return;
+
+    setPurchasing(true);
+    try {
+      const uc = await purchaseCoupon(coupon.id);
+      if (uc) {
+        toast({ title: 'Purchased!', description: 'Check My Coupons for your QR code.' });
+        // Refresh coupon data to update stock
+        const updated = await getCoupon(coupon.id);
+        if (updated) setCoupon(updated);
+      } else {
+        toast({ title: 'Failed', description: 'Could not purchase coupon.', variant: 'destructive' });
+      }
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Purchase failed', variant: 'destructive' });
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="container py-12 text-center text-muted-foreground">Loading coupon...</div>;
+  }
+
+  if (error || !coupon) {
+    return <div className="container py-12 text-center text-destructive">{error || 'Coupon not found.'}</div>;
+  }
 
   const isExpired = new Date(coupon.expiration_date) < new Date();
   const outOfStock = coupon.stock <= 0;
   const originalPrice = coupon.price / (1 - coupon.discount_percentage / 100);
-
-  const handlePurchase = () => {
-    if (!user) { navigate('/login'); return; }
-    const uc = purchaseCoupon(coupon.id);
-    if (uc) {
-      toast({ title: 'Purchased!', description: 'Check My Coupons for your QR code.' });
-      setTick(t => t + 1);
-    } else {
-      toast({ title: 'Failed', description: 'Could not purchase coupon.', variant: 'destructive' });
-    }
-  };
 
   return (
     <div className="container max-w-2xl py-8">
@@ -77,9 +136,9 @@ export default function CouponDetailPage() {
             <span className="flex items-center gap-1"><Tag className="h-4 w-4" />{coupon.stock} remaining</span>
           </div>
 
-          <Button size="lg" className="w-full" disabled={isExpired || outOfStock} onClick={handlePurchase}>
+          <Button size="lg" className="w-full" disabled={isExpired || outOfStock || purchasing} onClick={handlePurchase}>
             <ShoppingCart className="mr-2 h-5 w-5" />
-            {isExpired ? 'Expired' : outOfStock ? 'Sold Out' : 'Purchase Coupon (Simulated)'}
+            {purchasing ? 'Processing...' : isExpired ? 'Expired' : outOfStock ? 'Sold Out' : 'Purchase Coupon'}
           </Button>
         </CardContent>
       </Card>

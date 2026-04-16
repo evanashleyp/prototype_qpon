@@ -16,7 +16,9 @@ interface CouponCardProps {
 export default function CouponCard({ coupon, showMerchantActions, salesCount, onEdit, onDelete }: CouponCardProps) {
   const isExpired = new Date(coupon.expiration_date) < new Date();
   const outOfStock = coupon.stock <= 0;
-  const originalPrice = coupon.price / (1 - coupon.discount_percentage / 100);
+  const price = Number(coupon.price) || 0;
+  const discountPercentage = Number(coupon.discount_percentage) || 0;
+  const originalPrice = price / (1 - discountPercentage / 100);
 
   return (
     <Card className="flex flex-col animate-fade-in overflow-hidden">
@@ -24,7 +26,7 @@ export default function CouponCard({ coupon, showMerchantActions, salesCount, on
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-display text-lg font-semibold leading-tight">{coupon.title}</h3>
           <Badge variant={isExpired || outOfStock ? "destructive" : "default"} className="shrink-0">
-            {isExpired ? 'Expired' : outOfStock ? 'Sold Out' : `-${coupon.discount_percentage}%`}
+            {isExpired ? 'Expired' : outOfStock ? 'Sold Out' : `-${discountPercentage}%`}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">{coupon.merchant_name}</p>
@@ -43,7 +45,7 @@ export default function CouponCard({ coupon, showMerchantActions, salesCount, on
         )}
 
         <div className="flex items-baseline gap-2">
-          <span className="font-display text-2xl font-bold text-primary">${coupon.price.toFixed(2)}</span>
+          <span className="font-display text-2xl font-bold text-primary">${price.toFixed(2)}</span>
           <span className="text-sm text-muted-foreground line-through">${originalPrice.toFixed(2)}</span>
         </div>
 
