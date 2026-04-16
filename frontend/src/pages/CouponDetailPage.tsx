@@ -26,13 +26,18 @@ export default function CouponDetailPage() {
       try {
         setLoading(true);
         setError(null);
-        const data = await getCoupon(id!);
-        if (isMounted) {
-          if (data) {
-            setCoupon(data);
-          } else {
-            setError('Coupon not found');
+        const idNumber = parseInt(id!);
+        if (!isNaN(idNumber)) { // Check if id is a valid number
+          const data = await getCoupon(idNumber.toString()); // Convert to string for getCoupon function
+          if (isMounted) {
+            if (data) {
+              setCoupon(data);
+            } else {
+              setError('Coupon not found');
+            }
           }
+        } else {
+          setError('Invalid coupon ID');
         }
       } catch (err) {
         if (isMounted) {
@@ -45,8 +50,10 @@ export default function CouponDetailPage() {
       }
     }
 
-    if (id) {
+    if (id && !isNaN(parseInt(id!))) { // Check if id is a valid number
       loadCoupon();
+    } else {
+      navigate(-1); // Navigate back to previous page if id is not provided or invalid
     }
 
     return () => {
