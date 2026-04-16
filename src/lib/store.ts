@@ -7,6 +7,8 @@ const MOCK_MERCHANTS: User[] = [
   { id: 'm3', name: 'Pizza Express', email: 'pizza@demo.com', role: 'merchant', created_at: '2024-02-01' },
 ];
 
+let registeredUsers: User[] = [];
+
 let coupons: Coupon[] = [
   {
     id: 'c1', merchant_id: 'm1', merchant_name: 'Burger Palace',
@@ -80,6 +82,13 @@ export function login(email: string, password: string): User | null {
     return null;
   }
 
+  // Check registered users first
+  const registeredUser = registeredUsers.find(u => u.email === email);
+  if (registeredUser) {
+    currentUser = registeredUser;
+    return currentUser;
+  }
+
   // Demo accounts
   if (email === 'user@demo.com') {
     currentUser = { id: 'u1', name: 'Demo User', email, role: 'user', created_at: '2024-01-01' };
@@ -94,7 +103,9 @@ export function login(email: string, password: string): User | null {
 }
 
 export function register(name: string, email: string, password: string, role: 'user' | 'merchant'): User {
-  currentUser = { id: generateId(), name, email, role, created_at: new Date().toISOString() };
+  const user: User = { id: generateId(), name, email, role, created_at: new Date().toISOString() };
+  registeredUsers.push(user);
+  currentUser = user;
   // Store password for new user
   MOCK_PASSWORDS.set(email, password);
   return currentUser;

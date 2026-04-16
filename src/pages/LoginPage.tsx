@@ -33,7 +33,7 @@ export default function LoginPage({ onAuth }: LoginPageProps) {
       onAuth(user);
       navigate(user.role === 'merchant' ? '/merchant' : '/coupons');
     } else {
-      toast({ title: 'Login failed', description: 'Try user@demo.com, burger@demo.com, coffee@demo.com, or pizza@demo.com', variant: 'destructive' });
+      toast({ title: 'Login failed', description: 'Demo: user@demo.com or burger@demo.com (pass: password)', variant: 'destructive' });
     }
   };
 
@@ -70,7 +70,7 @@ export default function LoginPage({ onAuth }: LoginPageProps) {
                 </div>
                 <div className="space-y-2">
                   <Label>Password</Label>
-                  <Input type="password" placeholder="any password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} />
+                  <Input type="password" placeholder="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} />
                   <div className="text-right">
                     <Button 
                       type="button"
@@ -84,7 +84,8 @@ export default function LoginPage({ onAuth }: LoginPageProps) {
                 </div>
                 <Button type="submit" className="w-full">Login</Button>
                 <p className="text-xs text-center text-muted-foreground">
-                  Demo: user@demo.com (customer) · burger@demo.com (merchant)
+                  Demo: user@demo.com (customer) · burger@demo.com (merchant)<br />
+                  <span className="text-foreground font-medium">Password: password</span>
                 </p>
               </form>
             </TabsContent>
