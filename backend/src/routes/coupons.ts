@@ -433,8 +433,9 @@ router.post('/:qrcode/redeem', authMiddleware, merchantOnly, async (req: AuthReq
         `
         SELECT 
           uc.id, uc.transaction_id, uc.user_id, uc.coupon_id, uc.qr_code, 
-          uc.is_redeemed, uc.redeemed_at, uc.expires_at, uc.price_bought_at
+          uc.is_redeemed, uc.redeemed_at, uc.expires_at, t.price_bought_at
         FROM user_coupons uc
+        JOIN transactions t ON uc.transaction_id = t.id
         WHERE uc.qr_code = ?
         `,
         [qrcode]
