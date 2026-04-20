@@ -287,6 +287,113 @@ router.delete('/:id', authMiddleware, merchantOnly, async (req: AuthRequest, res
 });
 
 /**
+ * PUT /api/coupons/:id
+ * Update coupon (merchant only)
+ */
+router.put('/:id', authMiddleware, merchantOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title, description, price, discount_percentage: discountPercentage, expiration_date: expirationDate, stock, items } = req.body;
+
+    // Validate request body
+    if (!title || !description || price === undefined || discountPercentage === undefined || !expirationDate || stock === undefined) {
+      res.status(400).json({
+        success: false,
+        message: 'Missing required fields',
+      });
+      return;
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+      // Get merchant ID for this user
+      const [merchants] = await connection.query(
+        'SELECT id FROM merchants WHERE user_id = ?',
+        [req.user?.id]
+      );
+
+      if (!Array.isArray(merchants) || merchants.length === 0) {
+        res.status(403).json({
+          success: false,
+          message: 'User is not a merchant',
+        });
+        return;
+      }
+
+      const merchantId = (merchants[0] as { id: string }).id;
+
+      // Verify merchant owns this coupon
+      const [coupons] = await connection.query(
+        'SELECT id FROM coupons WHERE id = ? AND merchant_id = ?',
+        [id, merchantId]
+      );
+
+      if (!Array.isArray(coupons) || coupons.length === 0) {
+        res.status(404).json({
+          success: false,
+          message: 'Coupon not found or you do not have permission to edit it',
+        });
+        return;
+      }
+
+      // Update coupon
+      await connection.query(
+        `
+        UPDATE coupons 
+        SET title = ?, description = ?, price = ?, discount_percentage = ?, expiration_date = ?, stock = ?
+        WHERE id = ?
+        `,
+        [title, description, price, discountPercentage, expirationDate, stock, id]
+      );
+
+      // Delete existing items
+      await connection.query('DELETE FROM coupon_items WHERE coupon_id = ?', [id]);
+
+      // Create new coupon items
+      if (Array.isArray(items) && items.length > 0) {
+        for (const item of items) {
+          const itemId = uuidv4();
+          await connection.query(
+            'INSERT INTO coupon_items (id, coupon_id, item_name, quantity) VALUES (?, ?, ?, ?)',
+            [itemId, id, item.item_name, item.quantity]
+          );
+        }
+      }
+
+      // Fetch updated coupon
+      const [updatedCoupons] = await connection.query(
+        'SELECT id, merchant_id, title, description, price, discount_percentage, expiration_date, stock, created_at FROM coupons WHERE id = ?',
+        [id]
+      );
+
+      // Fetch items
+      const [updatedItems] = await connection.query(
+        'SELECT id, coupon_id, item_name, quantity FROM coupon_items WHERE coupon_id = ?',
+        [id]
+      );
+
+      res.json({
+        success: true,
+        message: 'Coupon updated successfully',
+        coupon: {
+          ...(Array.isArray(updatedCoupons) && updatedCoupons.length > 0 ? updatedCoupons[0] : {}),
+          items: Array.isArray(updatedItems) ? updatedItems : [],
+        },
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error('Update coupon error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+/**
  * POST /api/coupons/:id/purchase
  * Purchase coupon (creates transaction and user coupon)
  */

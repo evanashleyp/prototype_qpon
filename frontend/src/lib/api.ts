@@ -229,6 +229,27 @@ export async function apiDeleteCoupon(id: string): Promise<{ success: boolean; m
   });
 }
 
+export interface UpdateCouponResponse {
+  success: boolean;
+  message: string;
+  coupon?: Coupon;
+}
+
+export async function apiUpdateCoupon(id: string, data: {
+  title: string;
+  description: string;
+  price: number;
+  discount_percentage: number;
+  expiration_date: string;
+  stock: number;
+  items: Array<{ item_name: string; quantity: number }>;
+}): Promise<UpdateCouponResponse> {
+  return fetchAPI(`/coupons/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
 export interface UserCoupon {
   id: string;
   transaction_id: string;

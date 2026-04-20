@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCurrentUser, getMerchantCoupons, createCoupon, deleteCoupon, redeemCoupon } from '@/lib/store';
+import { getCurrentUser, getMerchantCoupons, createCoupon, editCoupon, deleteCoupon, redeemCoupon } from '@/lib/store';
 import CouponCard from '@/components/CouponCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,8 +20,11 @@ export default function MerchantDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [qrInput, setQrInput] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
 
   // Create form
   const [title, setTitle] = useState('');
@@ -147,6 +150,65 @@ export default function MerchantDashboard() {
     }
   };
 
+  const handleOpenEdit = (coupon: Coupon) => {
+    setEditingCoupon(coupon);
+    setTitle(coupon.title);
+    setDescription(coupon.description);
+    setPrice(String(coupon.price));
+    setDiscount(String(coupon.discount_percentage));
+    setExpDate(coupon.expiration_date);
+    setStock(String(coupon.stock));
+    setItemsRaw(coupon.items.map(item => `${item.quantity} ${item.item_name}`).join('\n'));
+    setEditOpen(true);
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCoupon || !title || !description || !price || !discount || !expDate || !stock) {
+      toast({ title: 'Error', description: 'Please fill in all fields', variant: 'destructive' });
+      return;
+    }
+
+    const items = itemsRaw.split('\n').filter(Boolean).map(line => {
+      const [qty, ...rest] = line.split(' ');
+      return { item_name: rest.join(' ') || 'Item', quantity: parseInt(qty) || 1 };
+    });
+
+    setEditing(true);
+    try {
+      const result = await editCoupon(editingCoupon.id, {
+        title, description,
+        price: parseFloat(price), 
+        discount_percentage: parseInt(discount),
+        expiration_date: expDate, 
+        stock: parseInt(stock),
+        items,
+      });
+
+      if (result) {
+        toast({ title: 'Coupon updated!', description: 'Your changes have been saved' });
+        setEditOpen(false);
+        setEditingCoupon(null);
+        setTitle('');
+        setDescription('');
+        setPrice('');
+        setDiscount('');
+        setExpDate('');
+        setStock('');
+        setItemsRaw('');
+        // Refresh coupons
+        const updated = await getMerchantCoupons();
+        setCoupons(updated);
+      } else {
+        toast({ title: 'Error', description: 'Failed to update coupon', variant: 'destructive' });
+      }
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to update coupon', variant: 'destructive' });
+    } finally {
+      setEditing(false);
+    }
+  };
+
   return (
     <div className="container py-8">
       <div className="flex items-center justify-between mb-8">
@@ -181,6 +243,31 @@ export default function MerchantDashboard() {
             </form>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>Edit Coupon</DialogTitle></DialogHeader>
+            <form onSubmit={handleEdit} className="space-y-4">
+              <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} disabled={editing} required /></div>
+              <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} disabled={editing} required /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2"><Label>Price ($)</Label><Input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} disabled={editing} required /></div>
+                <div className="space-y-2"><Label>Discount %</Label><Input type="number" value={discount} onChange={e => setDiscount(e.target.value)} disabled={editing} required /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2"><Label>Expiration</Label><Input type="date" value={expDate} onChange={e => setExpDate(e.target.value)} disabled={editing} required /></div>
+                <div className="space-y-2"><Label>Stock</Label><Input type="number" value={stock} onChange={e => setStock(e.target.value)} disabled={editing} required /></div>
+              </div>
+              <div className="space-y-2">
+                <Label>Bundle Items (one per line: "qty name")</Label>
+                <Textarea placeholder={"1 Large Burger\n1 Fries\n1 Drink"} value={itemsRaw} onChange={e => setItemsRaw(e.target.value)} disabled={editing} />
+              </div>
+              <Button type="submit" className="w-full" disabled={editing}>
+                {editing ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* QR Scanner simulation */}
@@ -210,6 +297,7 @@ export default function MerchantDashboard() {
               key={c.id}
               coupon={c}
               showMerchantActions
+              onEdit={() => handleOpenEdit(c)}
               onDelete={() => handleDelete(c.id)}
             />
           ))}

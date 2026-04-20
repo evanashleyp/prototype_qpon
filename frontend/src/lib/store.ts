@@ -10,6 +10,7 @@ import {
   apiGetCoupon,
   apiCreateCoupon,
   apiDeleteCoupon,
+  apiUpdateCoupon,
   apiPurchaseCoupon,
   apiRedeemCoupon,
   apiGetUserCoupons,
@@ -185,6 +186,27 @@ export async function deleteCoupon(id: string): Promise<boolean> {
   } catch (error) {
     console.error('Delete coupon error:', error);
     return false;
+  }
+}
+
+/**
+ * Update a coupon (merchant only)
+ */
+export async function editCoupon(id: string, data: {
+  title: string;
+  description: string;
+  price: number;
+  discount_percentage: number;
+  expiration_date: string;
+  stock: number;
+  items: Array<{ item_name: string; quantity: number }>;
+}): Promise<Coupon | null> {
+  try {
+    const response = await apiUpdateCoupon(id, data);
+    return response.coupon || null;
+  } catch (error) {
+    console.error('Edit coupon error:', error);
+    return null;
   }
 }
 
