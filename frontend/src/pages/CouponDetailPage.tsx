@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCoupon, purchaseCoupon, getCurrentUser } from '@/lib/store';
+import { getCoupon, purchaseCoupon, getCurrentUser, deleteCoupon } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Clock, Package, Tag, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Clock, Package, Tag, ShoppingCart, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Coupon } from '@/lib/types';
 
@@ -17,6 +17,7 @@ export default function CouponDetailPage() {
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,9 +27,8 @@ export default function CouponDetailPage() {
       try {
         setLoading(true);
         setError(null);
-        const idNumber = parseInt(id!);
-        if (!isNaN(idNumber)) { // Check if id is a valid number
-          const data = await getCoupon(idNumber.toString()); // Convert to string for getCoupon function
+        if (id) {
+          const data = await getCoupon(id);
           if (isMounted) {
             if (data) {
               setCoupon(data);
@@ -50,10 +50,10 @@ export default function CouponDetailPage() {
       }
     }
 
-    if (id && !isNaN(parseInt(id!))) { // Check if id is a valid number
+    if (id) {
       loadCoupon();
     } else {
-      navigate(-1); // Navigate back to previous page if id is not provided or invalid
+      navigate(-1); // Navigate back to previous page if id is not provided
     }
 
     return () => {
@@ -86,6 +86,25 @@ export default function CouponDetailPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this coupon?')) return;
+    
+    setDeleting(true);
+    try {
+      const success = await deleteCoupon(coupon!.id);
+      if (success) {
+        toast({ title: 'Deleted!', description: 'Coupon has been deleted.' });
+        navigate(-1);
+      } else {
+        toast({ title: 'Error', description: 'Failed to delete coupon.', variant: 'destructive' });
+      }
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Delete failed', variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return <div className="container py-12 text-center text-muted-foreground">Loading coupon...</div>;
   }
@@ -96,7 +115,9 @@ export default function CouponDetailPage() {
 
   const isExpired = new Date(coupon.expiration_date) < new Date();
   const outOfStock = coupon.stock <= 0;
-  const originalPrice = coupon.price / (1 - coupon.discount_percentage / 100);
+  const price = Number(coupon.price) || 0;
+  const discountPercentage = Number(coupon.discount_percentage) || 0;
+  const originalPrice = price / (1 - discountPercentage / 100);
 
   return (
     <div className="container max-w-2xl py-8">
@@ -112,7 +133,7 @@ export default function CouponDetailPage() {
               <p className="text-muted-foreground">{coupon.merchant_name}</p>
             </div>
             <Badge variant={isExpired || outOfStock ? "destructive" : "default"} className="text-base px-3 py-1">
-              {isExpired ? 'Expired' : outOfStock ? 'Sold Out' : `-${coupon.discount_percentage}%`}
+              {isExpired ? 'Expired' : outOfStock ? 'Sold Out' : `-${discountPercentage}%`}
             </Badge>
           </div>
 
@@ -133,9 +154,9 @@ export default function CouponDetailPage() {
           )}
 
           <div className="flex items-baseline gap-3">
-            <span className="font-display text-4xl font-bold text-primary">${coupon.price.toFixed(2)}</span>
+            <span className="font-display text-4xl font-bold text-primary">${price.toFixed(2)}</span>
             <span className="text-lg text-muted-foreground line-through">${originalPrice.toFixed(2)}</span>
-            <span className="text-sm text-muted-foreground">You save ${(originalPrice - coupon.price).toFixed(2)}</span>
+            <span className="text-sm text-muted-foreground">You save ${(originalPrice - price).toFixed(2)}</span>
           </div>
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -147,6 +168,19 @@ export default function CouponDetailPage() {
             <ShoppingCart className="mr-2 h-5 w-5" />
             {purchasing ? 'Processing...' : isExpired ? 'Expired' : outOfStock ? 'Sold Out' : 'Purchase Coupon'}
           </Button>
+
+          {user?.role === 'merchant' && (
+            <Button 
+              size="lg" 
+              variant="destructive" 
+              className="w-full mt-2" 
+              disabled={deleting} 
+              onClick={handleDelete}
+            >
+              <Trash2 className="mr-2 h-5 w-5" />
+              {deleting ? 'Deleting...' : 'Delete Coupon'}
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ export default function ResetPasswordPage() {
   const [validationError, setValidationError] = useState('');
 
   // Validate reset code on mount
-  React.useEffect(() => {
+  useEffect(() => {
     let isMounted = true;
 
     async function validateCode() {

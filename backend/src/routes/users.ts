@@ -11,60 +11,81 @@ const router = Router();
  */
 router.get('/coupons', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
+    // Validate user is authenticated
+    if (!req.user?.id) {
+      res.status(401).json({
+        success: false,
+        message: 'User not authenticated',
+      });
+      return;
+    }
+
     const connection = await pool.getConnection();
 
     try {
-      // Get user coupons
+      // Get user coupons with merchant info
       const [userCoupons] = await connection.query<RowDataPacket[]>(
         `
         SELECT 
           uc.id, uc.transaction_id, uc.coupon_id, uc.qr_code, 
-          uc.is_redeemed, uc.redeemed_at, uc.expires_at, uc.price_bought_at,
-          c.id as coupon_id, c.merchant_id, c.title, c.description, c.price, 
+          uc.is_redeemed, uc.redeemed_at, uc.expires_at, t.price_bought_at,
+          c.id as coupon_actual_id, c.merchant_id, c.title, c.description, c.price, 
           c.discount_percentage, c.expiration_date, c.stock, c.created_at,
           u.name as merchant_name
         FROM user_coupons uc
+        JOIN transactions t ON uc.transaction_id = t.id
         JOIN coupons c ON uc.coupon_id = c.id
         JOIN merchants m ON c.merchant_id = m.id
         JOIN users u ON m.user_id = u.id
         WHERE uc.user_id = ?
         ORDER BY uc.created_at DESC
         `,
-        [req.user?.id]
+        [req.user.id]
       );
+
+      if (!Array.isArray(userCoupons) || userCoupons.length === 0) {
+        res.json({
+          success: true,
+          coupons: [],
+        });
+        return;
+      }
 
       // Get coupon items for each coupon
       const couponsWithItems = await Promise.all(
-        Array.isArray(userCoupons)
-          ? userCoupons.map(async (uc: RowDataPacket) => {
-              const [items] = await connection.query(
-                'SELECT id, coupon_id, item_name, quantity FROM coupon_items WHERE coupon_id = ?',
-                [uc.coupon_id]
-              );
-              return {
-                id: uc.id,
-                transaction_id: uc.transaction_id,
-                qr_code: uc.qr_code,
-                is_redeemed: uc.is_redeemed,
-                redeemed_at: uc.redeemed_at,
-                expires_at: uc.expires_at,
-                price_bought_at: uc.price_bought_at,
-                coupon: {
-                  id: uc.coupon_id,
-                  merchant_id: uc.merchant_id,
-                  merchant_name: uc.merchant_name,
-                  title: uc.title,
-                  description: uc.description,
-                  price: uc.price,
-                  discount_percentage: uc.discount_percentage,
-                  expiration_date: uc.expiration_date,
-                  stock: uc.stock,
-                  created_at: uc.created_at,
-                  items: Array.isArray(items) ? items : [],
-                },
-              };
-            })
-          : []
+        userCoupons.map(async (uc: RowDataPacket) => {
+          try {
+            const [items] = await connection.query<RowDataPacket[]>(
+              'SELECT id, coupon_id, item_name, quantity FROM coupon_items WHERE coupon_id = ?',
+              [uc.coupon_id]
+            );
+            return {
+              id: uc.id,
+              transaction_id: uc.transaction_id,
+              qr_code: uc.qr_code,
+              is_redeemed: uc.is_redeemed,
+              redeemed_at: uc.redeemed_at,
+              expires_at: uc.expires_at,
+              price_bought_at: uc.price_bought_at,
+              coupon: {
+                id: uc.coupon_actual_id,
+                merchant_id: uc.merchant_id,
+                merchant_name: uc.merchant_name,
+                title: uc.title,
+                description: uc.description,
+                price: uc.price,
+                discount_percentage: uc.discount_percentage,
+                expiration_date: uc.expiration_date,
+                stock: uc.stock,
+                created_at: uc.created_at,
+                items: Array.isArray(items) ? items : [],
+              },
+            };
+          } catch (itemErr) {
+            console.error('Error fetching items for coupon:', uc.coupon_id, itemErr);
+            throw itemErr;
+          }
+        })
       );
 
       res.json({

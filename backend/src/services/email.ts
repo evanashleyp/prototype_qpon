@@ -12,20 +12,44 @@ interface EmailOptions {
 }
 
 // Email transporter configuration
-const transporter = nodemailer.createTransport({
-  host: 'smtp.ethereal.email',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER || 'selina.weissnat@ethereal.email',
-    pass: process.env.EMAIL_PASS || '8nmdv9GM9GnWBEEbR1',
-  },
-});
+// Uses environment variables or defaults to demo credentials for development
+const getTransporter = () => {
+  // User can specify SMTP configuration
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_PORT === '465',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      connectionTimeout: 5000,
+      socketTimeout: 5000,
+    });
+  }
+  
+  // Default to Ethereal test credentials with timeout
+  return nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER || 'selina.weissnat@ethereal.email',
+      pass: process.env.EMAIL_PASS || '8nmdv9GM9GnWBEEbR1',
+    },
+    connectionTimeout: 5000,
+    socketTimeout: 5000,
+  });
+};
+
+const transporter = getTransporter();
 
 // Test transporter on initialization
 transporter.verify((err, success) => {
   if (err) {
     console.error('❌ Email transporter error:', err.message);
+    console.log('⚠️  Email service may not work - check SMTP_HOST, SMTP_USER, SMTP_PASS environment variables');
   } else {
     console.log('✅ Email transporter ready');
   }

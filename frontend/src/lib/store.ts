@@ -19,6 +19,7 @@ import {
   apiResetPassword,
   apiLogout as apiLogoutCall,
   apiValidateToken,
+  apiGetMerchantStats,
 } from './api';
 import { Coupon, User, UserCoupon, Transaction, CouponItem, PasswordResetToken } from './types';
 
@@ -145,7 +146,7 @@ export async function getMerchantCoupons(): Promise<Coupon[]> {
     if (!user || user.role !== 'merchant') {
       return [];
     }
-    const response = await apiGetCoupons({ merchant: user.id });
+    const response = await apiGetMerchantStats();
     return response.coupons || [];
   } catch (error) {
     console.error('Get merchant coupons error:', error);
